@@ -1,0 +1,115 @@
+# This is a YAML config file for the WGBS pipeline
+
+# ---------------------------------
+# GENERAL CONFIGURATION (required)
+# ---------------------------------
+
+name: "My Project"
+working_dir: "/path/to/workdir"
+raw_data_dir: "/path/to/raw/data"
+design_matrix: "/path/to/design_matrix.csv"
+
+# ---------------------------------
+# Step 1: QC (optional/recommended)
+# ---------------------------------
+
+fastqc_args: "" 
+
+trim_reads: 
+  run_trimming: true 
+  trim_galore_cores: 0
+  trim_galore_args: "" 
+
+# ---------------------------------
+# Step 2: ALIGNMENT (optional) 
+# ---------------------------------
+
+alignment:
+  genome: "mm10" # (mm10, hg38)
+  path_to_genome_fasta: "/path/to/genome/fasta"
+  alignment_tool: "bismark" # (bismark or bsmap)
+
+bismark:
+  run_indexing: false 
+  path_to_bismark_idx: "/path/to/genome" 
+  bismark_cores: 4 
+  bismark_args: "" 
+
+bsmap:
+  bsmap_cores: 4 
+  bsmap_mode: "unique" 
+  bsmap_args: "" 
+
+# ---------------------------------
+# Step 3: BAM PROCESSING (optional/recommended)
+# ---------------------------------
+
+samtools:
+  samtools_cores: 4 
+  
+deduplication:
+  deduplication_tool: "picard" # (picard or bismark)
+  picard_args: "" 
+  bismark_deduplication_args: "" 
+
+downsampling:
+  run_downsampling: true
+
+#blacklist_regions: "/path/to/blacklist/regions.bed"
+
+
+# ---------------------------------
+# Step 4: METHYLATION CALLING (optional)
+# ---------------------------------
+
+# Methylation calling parameters
+call_methylation:
+  methylation_caller: "bismark" # (bismark or methyldackel)
+  run_methylation_bias_check: true  
+  stop_after_m_bias_check: false # irrelevent if auto_ignore for Methyldackel is set to true
+  run_methylation_calling: true 
+# Methylation Bias check (optional and only automatically possible with Methyldackel)
+# !!! For Bismark, the user has to re-run the methylation calling
+# !!! bismark methylation calling only possible with bismark alignment
+
+bismark_call:
+  bismark_methylation_cores: 4
+  bismark_methylation_args: ""
+  R1_5prime_ignore: 0
+  R1_3prime_ignore: 0
+  R2_5prime_ignore: 0
+  R2_3prime_ignore: 0
+
+
+Methyldackel:
+  methyldackel_cores: 4 
+  methyldackel_mbias_args: ""
+  methyldackel_args: "-q 0"
+  also_methylkit: true
+  auto_ignore: true
+  OT_ignore: 0,0,0,0
+  OB_ignore: 0,0,0,0
+  
+# ---------------------------------
+# Step 5: METHYLATION ANALYSIS (optional)
+# ---------------------------------
+
+DMR_analysis:
+  run_DMR_analysis: true 
+  DMR_analysis_tool: "metilene" # (methylkit or metilene)
+  minimum_coverage: 5
+
+metilene:
+  path_to_metilene: "/path/to/metilene" # '' if in PATH
+  metilene_cores: 4
+  maxdist: 300
+  mincpgs: 5
+  minMethDiff: 0.1
+  metilene_args: ""
+
+# ---------------------------------
+# Step 6: CLEANUP (optional)
+# ---------------------------------
+
+# remove intermediate/temporary files
+cleanup: true 
