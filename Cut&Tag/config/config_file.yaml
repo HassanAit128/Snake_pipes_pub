@@ -11,6 +11,10 @@ path_to_raw_data: "/path/to/raw/data" # path to the directory containing the fas
 ## DESIGN MATRIX:
 design_matrix: "/path/to/design/matrix" # path to the design matrix file
 
+## GENOME:
+genome: "mm10" # mm10 or hg38
+path_to_genome_fasta: "" 
+
 ## Number of Cores:
 nbCores_bowtie2: 12
 nbCores_picard: 12
@@ -42,12 +46,10 @@ trim_data: False
 adapter: "" # can be empty string "" for auto detection of adapter-sequence or one of ["illumina", "stranded_illumina", "nextera", "small_rna"]
 
 ## ALignement with Bowtie2:
-genome: "mm10" # mm10 or hg38
 path_to_bowtie2_genome_idx: "" # required if index_genome is false
 # Example : if index is /path/to/index/mm10/mm10.rev.2.bt2, then, path_to_bowtie2_genome_idx =  /path/to/index/mm10
 # NB: Index prefix should be mm10 or hg38, example: mm10.rev.2.bt2
 index_genome: false # if true, the genome will be indexed
-path_to_genome_fasta: "" # required if index_genome is true
 
 ## Removing Duplicates: 
 remove_duplicates: true # if true, duplicates will be removed
@@ -99,3 +101,11 @@ plot_heatmap_parameters: "--colorMap RdBu"
 plot_profile: false
 plot_profile_parameters: ""
 custom_regions: "" # if custom regions are to be used, empty string otherwise
+
+
+## ATAC-seq specific: TOBIAS
+run_tobias: false
+nbCores_TOBIAS: 12
+motifs: "" # path to the motifs file, required if run_tobias is true
+blacklist: "" # path to the blacklist file, required if run_tobias is true
+uropa_config: "/path/to/uropa/config" # path to the uropa config file

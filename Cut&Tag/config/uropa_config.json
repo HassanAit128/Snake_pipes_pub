@@ -1,0 +1,7 @@
+{
+"queries":[
+    {"distance": [100000, 25000], "feature": ["gene"], "feature_anchor": ["start", "center", "end"], "name": "query_1", "relative_location": ["PeakInsideFeature", "FeatureInsidePeak", "Upstream", "Downstream", "OverlapStart", "OverlapEnd"], "strand": "ignore"}
+          ],
+"gtf": "/shared/projects/seq_mm_te_reg_g/Hassan/TOBIAS_snakemake/Mus_musculus.GRCm38.100.gtf",
+"threads": "8"
+}

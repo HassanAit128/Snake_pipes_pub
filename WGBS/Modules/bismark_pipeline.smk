@@ -31,8 +31,9 @@ rule align:
         log = "{run_dir}/LOGS/ALIGN_LOGS/{sample}_bismark.log"
     shell:
         """
-        bismark -q --gzip -p {threads} --basename {wildcards.sample}_aligned --genome {params.genome} {params.additional_params} -1 {input.R1} -2 {input.R2} -o {params.run_dir}/ALIGN_BAM > {log} 2>&1
+        bismark -q --gzip --parallel {threads} --genome {params.genome} {params.additional_params} -1 {input.R1} -2 {input.R2} -o {params.run_dir}/ALIGN_BAM > {log} 2>&1
         mv {params.run_dir}/ALIGN_BAM/{wildcards.sample}*_report.txt {params.run_dir}/REPORTS/ALIGN_REPORTS
+        mv {params.run_dir}/ALIGN_BAM/{wildcards.sample}*_bismark_bt2_pe.bam {output.bam}
         """
 
 rule dedup:

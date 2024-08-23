@@ -84,6 +84,8 @@ A [design matrix file](/Cut&Tag/config/design_template.csv) in `csv` format is a
 | working_directory  | String  | The path to the working directory where the output files should be saved |
 | path_to_raw_data   | String  | The path to the folder containing the raw fastq files |
 | design_matrix      | String  | The path to the design matrix file                    |
+| genome             | String  | The reference genome to use. Available options : `hg19`, `mm10` |
+| path_to_genome_fasta | String | The path to the reference genome in fasta format, **only relevant if the genome is to be indexed by the pipeline** |
 | nbCores_(tool)     | Integer | (> 0) The number of cores to use for each tool        |
 | available_memory   | Integer | (> 0) The amount of memory available for the pipeline, in GB |
 | available_cores    | Integer | (> 0) The number of cores available for the pipeline  |
@@ -92,9 +94,7 @@ A [design matrix file](/Cut&Tag/config/design_template.csv) in `csv` format is a
 fastqc_args          | String  | Additional arguments to pass to fastqc                |
 | trim_data          | Bool    | Whether or not to trim the fastq files                |
 | adapter            | String  | The adapter sequence to use for trimming, if not provided, the pipeline will try to auto-detect it. Options : `illumina`, `stranded_illumina`, `nextera`, `small_rna` |
-| genome             | String  | The reference genome to use. Available options : `hg19`, `mm10` |
 | index_genome       | Bool    | Whether or not to index the reference genome          |
-| path_to_genome_fasta | String | The path to the reference genome in fasta format, **only relevant if the genome is to be indexed by the pipeline** |
 | path_to_bowtie2_genome_idx | String | The path to the bowtie2 index of the reference genome, **only relevant if the genome is NOT to be indexed by the pipeline** |
 | remove_duplicates  | Bool    | Whether or not to remove duplicates                   |
 | output_finale_file_with_duplicates | Bool | Whether or not to also output BAM files with duplicates, **only relevant if `remove_duplicates` is set to `True`** |
@@ -124,6 +124,11 @@ fastqc_args          | String  | Additional arguments to pass to fastqc         
 | plot_profile       | Bool    | Whether or not to plot the profile                    |
 | plot_profile_parameters | String | Additional parameters to pass to the profile plotting tool |
 | custom_regions     | String  | Path to a bed file containing custom regions to use for the matrix computation and plotting |
+| run_tobias         | Bool    | Whether or not to run TOBIAS                          |
+| nbcores_tobias     | Integer | The number of cores to use for TOBIAS                 |
+| motifs             | String  | Path to the motifs to use for TOBIAS (all motifs must be in the same file)                  |
+| blacklist          | String  | Path to the blacklist regions to use for TOBIAS        |
+| uropa_config       | String  | Path to the UROPA configuration file,example config is provided [here](config/uropa_config.json), and keys and values should be edited as needed |
 
   > **Note:** Paths to directories/folders should not have a trailing "/" at the end
 

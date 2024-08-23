@@ -42,6 +42,7 @@ KEEP_UNIQ = True
 KEEP_REGULAR = config['keep_only_regular_reads'] # Keep only regular reads True/False
 ATAC_SEQ_MODE = config['atac_seq'] # ATAC-seq mode True/False
 MACS2_PARAMS = config['macs2_parameters'] # MACS2 parameters
+TOBIAS = config['run_tobias'] # Whether to run TOBIAS or not
 #####################################################################################################
 
 ############################################# ERROR CHECK ###########################################
@@ -98,6 +99,8 @@ onsuccess:
     if DIFFBIND:
         print(f"    Peak caller: {'MACS2' if USER_PEAKS == '' else USER_PEAKS_CALLER}")
         print(f"    Custom peaks file: {USER_PEAKS if USER_PEAKS != '' else 'None'}")
+    if TOBIAS:
+        print(f"TOBIAS: {TOBIAS}")
     print("#" * total_length)
 
 onerror:
@@ -187,6 +190,8 @@ def generate_rule_all_input(files):
         if COMPUTE_MATRIX:
             matrices = expand("{run_dir}/Matrix/mapq{q}_{dupli}_duplicates_matrix.gz", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
             rule_all_input.extend(matrices)
+        if TOBIAS:
+            rule_all_input.append(f"{DIRECTORY}/TOBIAS/BINDetect_output/bindetect_results.txt")
     rule_all_input.append(f"{DIRECTORY}/{RUN_NAME}_parameters_summary_part_3.txt")
     return rule_all_input, downsampled_samples, non_downsampled_samples
 
@@ -272,7 +277,7 @@ rule peak_calling:
 
 rule create_diffbind_input:
     input:
-        files = expand("{run_dir}/peak_calling/{sample}_peaks.{prefix}Peak", sample=[f for f in downsampled_samples] + [f for f in non_downsampled_samples], run_dir = DIRECTORY, prefix = "broad" if "broad" in MACS2_PARAMS or MACS2_PARAMS == "" else "narrow") if USER_PEAKS == "" else expand("{run_dir}/DS/{sample}.downsampled.bam", sample=[f for f in downsampled_samples], run_dir = DIRECTORY) + expand("{run_dir}/BAM/{sample}.bam", sample=[f for f in non_downsampled_samples], run_dir = DIRECTORY)
+        files = expand("{run_dir}/peak_calling/{sample}_peaks.{prefix}Peak", sample=[f for f in downsampled_samples] + [f for f in non_downsampled_samples], run_dir = DIRECTORY, prefix = "broad" if "broad" in MACS2_PARAMS else "narrow") if USER_PEAKS == "" else expand("{run_dir}/DS/{sample}.downsampled.bam", sample=[f for f in downsampled_samples], run_dir = DIRECTORY) + expand("{run_dir}/BAM/{sample}.bam", sample=[f for f in non_downsampled_samples], run_dir = DIRECTORY)
     output:
         expand("{run_dir}/DiffBind/diffbind_mapq{q}_{dupli}_duplicates.csv", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
     params:
@@ -346,6 +351,28 @@ rule compute_matrix:
         python Scripts/compute_matrix.py -b {input.bw} -a {input.annotated_peaks} -sr {params.specific} -d {params.design_matrix} -r {params.run_dir} -t {params.type_a} -ao "{params.addit_params}" -pp {params.plot_profile} -ppa "{params.pp_addit_params}" -ph {params.plot_heatmap} -pha "{params.ph_addit_params}" -cr {params.custom_regions} -p {threads} -up {params.upstream} -down {params.downstream}
         """
 
+rule tobias:
+    input:
+        matrix = expand("{run_dir}/DS/{sample}.downsampled.bam", sample=[f for f in downsampled_samples], run_dir = DIRECTORY),
+    output:
+        "{run_dir}/TOBIAS/BINDetect_output/bindetect_results.txt"
+    params:
+        run_dir = DIRECTORY,
+        des_mat = DESIGN_MATRIX_FILE,
+        genome = config['path_to_genome_fasta'],
+        macs2_params = MACS2_PARAMS,
+        uropa_config = config['uropa_config'],
+        motifs = config['motifs'],
+        blacklist = config['blacklist'],
+        mapq = MAPQ,
+        genomesize = "mm" if config['genome'] == "mm10" else "hs"
+    threads: config['nbCores_TOBIAS']
+    singularity: "docker://hasba/toburo"
+    shell:
+        """
+        python Scripts/tobias.py -q {params.mapq} -d {params.run_dir} -dm {params.des_mat} -b {input} -g {params.genome} -p "{params.macs2_params}" -c {params.uropa_config} -m {params.motifs} -bl {params.blacklist} --cores {threads} -gs {params.genomesize}
+        """
+    
 rule write_parameters:
     output:
         "{run_dir}/{run_name}_parameters_summary_part_3.txt"

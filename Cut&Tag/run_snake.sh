@@ -4,7 +4,7 @@
 #SBATCH --partition=long
 
 module purge
-module load snakemake/6.14.0
+module load snakemake/8.0.1
 module load samtools/1.15.1
 module load picard/2.23.5
 module load bowtie2/2.5.1
