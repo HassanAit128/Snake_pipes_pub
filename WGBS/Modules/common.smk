@@ -107,13 +107,7 @@ if DMR_analysis :
     if not CALL_METHYLATION:
         sys.exit('\033[91m' + 'ERROR: You need to run methylation calling before DMR analysis' + '\033[0m')
     MIN_COV = config['DMR_analysis']["minimum_coverage"]
-    if DMR_analysis_tool == 'metilene':
-        METILENE_PATH = config['metilene']['path_to_metilene']
-        METILENE_CORES = config['metilene']['metilene_cores']
-        METILENE_ARGS = config['metilene']['metilene_args']
-    elif DMR_analysis_tool == 'methylkit':
-        pass
-    else:
+    if DMR_analysis_tool.lower() not in ['metilene', 'methylkit']:
         sys.exit('\033[91m' + 'ERROR: DMR analysis tool must be either metilene or methylkit' + '\033[0m')
 
 GENERATE_REPORT = True

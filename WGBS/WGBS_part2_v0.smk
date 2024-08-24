@@ -95,9 +95,12 @@ def set_up_output_files():
         methylation_output = [PROJECT_DIR + '/METHYLATION/' + sample + prefix + suffix for sample in SAMPLES]
         all_output.extend(methylation_output)
         if DMR_analysis:
-            if DMR_analysis_tool == 'metilene':
+            if DMR_analysis_tool.lower() == 'metilene':
                 metilene_output = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.txt"
                 all_output.append(metilene_output)
+            elif DMR_analysis_tool.lower() == 'methylkit':
+                methylkit_output = f"{PROJECT_DIR}/METHYLATION/DMR/{config['name']}_methylkit_analysis.RData"
+                all_output.append(methylkit_output)
     return all_output
 ############################################################################################################
 
@@ -302,7 +305,8 @@ if CALL_METHYLATION_TOOL == "bismark":
         input:
             bam = lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.sorted.bam" if not DOWNSAMPLE else f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.ds.sorted.bam"
         output:
-            methylation = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bedGraph.gz"  if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bedGraph.gz"
+            methylation = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bedGraph.gz"  if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bedGraph.gz",
+            cov = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bismark.cov.gz" if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bismark.cov.gz"
         params:
             run_dir = PROJECT_DIR,
             R1_5prime_ignore = f"--ignore {config['bismark_call']['R1_5prime_ignore']}" if config['bismark_call']['R1_5prime_ignore'] > 0 else "",
@@ -360,7 +364,7 @@ if CALL_METHYLATION_TOOL == "methyldackel":
         input:
             bam = lambda wildcards: input_meth(wildcards.sample)
         output:
-            methylation = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted_CpG.bedGraph" if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted_CpG.bedGraph"
+            methylation = ["{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted_CpG.bedGraph" if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted_CpG.bedGraph"] + ["{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted_CpG.methylKit" if not DOWNSAMPLE and ALSO_METHYLKIT else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted_CpG.methylKit" if DOWNSAMPLE and ALSO_METHYLKIT else ""]
         params:
             run_dir = PROJECT_DIR,
             additional_params = CALL_METH_ARGS,
@@ -383,7 +387,7 @@ rule sort_for_metilene:
         "{run_dir}/METHYLATION/{sample}.sorted_mod.bedGraph"
     params:
         run_dir = PROJECT_DIR,
-        coverage = MIN_COV
+        coverage = config["DMR_analysis"]["minimum_coverage"]
     shell:
         """
         inputfile={input}
@@ -395,7 +399,7 @@ rule sort_for_metilene:
         awk '{{print $1,$2,$3,$4}}' {params.run_dir}/TEMP/{wildcards.sample}.sorted.bedGraph > {params.run_dir}/TEMP/{wildcards.sample}.sorted_m.bedGraph
         cat {params.run_dir}/TEMP/{wildcards.sample}.sorted_m.bedGraph | tr ' ' '\t' > {output}
         """ 
-        
+
 rule run_metilene:
     input:
         expand("{PROJECT_DIR}/METHYLATION/{sample}.sorted_mod.bedGraph", PROJECT_DIR = PROJECT_DIR, sample = SAMPLES)
@@ -403,17 +407,38 @@ rule run_metilene:
         "{run_dir}/METHYLATION/DMR/metilene_DMRs.txt"
     params:
         run_dir = PROJECT_DIR,
-        path_to_metilene = METILENE_PATH,
+        path_to_metilene = config['metilene']['path_to_metilene'],
         matrix = DESIGN_MATRIX,
         samples = SAMPLES,
         maxdist = config['metilene']['maxdist'],
         mincpgs = config['metilene']['mincpgs'],
         minMethDiff = config['metilene']['minMethDiff'],
-        additional_params = METILENE_ARGS if METILENE_ARGS != "" else "None"
-    threads: METILENE_CORES
+        additional_params = config['metilene']['metilene_args'] if config['metilene']['metilene_args'] != "" else "None"
+    threads: config['metilene']['metilene_cores']
     shell:
         """
         python Scripts/metilene_prep.py -m {params.matrix} -d {params.run_dir} -mp {params.path_to_metilene} -s {params.samples} -sp {input} -o {output} -c {threads} -md {params.maxdist} -mc {params.mincpgs} -mdf {params.minMethDiff} -aa {params.additional_params}
         """
+
+rule run_methylkit:
+    input:
+        calls = expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted.bismark.cov.gz", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS) if CALL_METHYLATION_TOOL == 'bismark' else expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted_CpG.methylKit", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS)
+    output:
+        "{run_dir}/METHYLATION/DMR/{run}_methylkit_analysis.RData"
+    params:
+        run_dir = PROJECT_DIR,
+        genome = GENOME,
+        pp = "bismark" if CALL_METHYLATION_TOOL == 'bismark' else "amp",
+        mincov = config['DMR_analysis']['minimum_coverage'],
+        min_methylation_diff = config['methylkit']['min_methylation_diff'],
+        pvalue = config['methylkit']['pvalue'],
+        min_DMR_length = config['methylkit']['min_DMR_length'],
+        regions = config['methylkit']['regions'],
+        design_matrix = DESIGN_MATRIX,
+        run = config['name']
+    singularity: 
+        "docker://hasba/mekit"
+    script:
+        "Scripts/methylkit.R"
 
 ############################################################################################################

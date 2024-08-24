@@ -107,6 +107,12 @@ metilene:
   minMethDiff: 0.1
   metilene_args: ""
 
+methylkit:
+  min_methylation_diff: 10
+  pvalue: 0.01
+  min_DMR_length: 100
+  regions: "/path/to/regions.bed"
+  
 # ---------------------------------
 # Step 6: CLEANUP (optional)
 # ---------------------------------

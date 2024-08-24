@@ -100,7 +100,8 @@ rule methylation_calling:
     input:
         bam = lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.sorted.bam" if not DOWNSAMPLE else f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.ds.sorted.bam"
     output:
-        methylation = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bismark.cov.gz"  if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bismark.cov.gz"
+        methylation = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bismark.cov.gz"  if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bismark.cov.gz",
+        cov = "{run_dir}/METHYLATION/{sample}.deduplicated.regular.sorted.bismark.cov" if not DOWNSAMPLE else "{run_dir}/METHYLATION/{sample}.deduplicated.regular.ds.sorted.bismark.cov"
     params:
         run_dir = PROJECT_DIR,
         R1_5prime_ignore = f"--ignore {config['bismark_call']['R1_5prime_ignore']}" if config['bismark_call']['R1_5prime_ignore'] > 0 else "",

@@ -403,6 +403,10 @@ rule tobias:
     singularity: "docker://hasba/toburo"
     shell:
         """
+        mkdir -p {params.run_dir}/TOBIAS
+        mkdir -p {params.run_dir}/TOBIAS/BINDetect_output
+        mkdir -p {params.run_dir}/TOBIAS/FootprintScores
+        mkdir -p {params.run_dir}/TOBIAS/ATACorrect
         python Scripts/tobias.py -q {params.mapq} -d {params.run_dir} -dm {params.des_mat} -b {input} -g {params.genome} -p "{params.macs2_params}" -c {params.uropa_config} -m {params.motifs} -bl {params.blacklist} --cores {threads} -gs {params.genomesize}
         """    
 
