@@ -59,8 +59,8 @@ The files used to build the images are available [here](docker/).
 ## Installation
 To install the pipeline, you can clone the repository using the following command:
 ```bash
-git clone https://github.com/HassanAit128/Snake_pipes_pub.git
-cd "Cut&Tag/"
+git clone https://github.com/xxxxxx/xxxxxxxxxxx.git
+cd xxxxxxxxxxx
 ```
 No further installation is required. Unless one wishes to edit and rebuild the docker/singularity image, in which case the following commands can be used:
 ```bash
@@ -112,7 +112,7 @@ fastqc_args          | String  | Additional arguments to pass to fastqc         
 | diffbind_flip      | Bool    | Whether or not to flip the fold change sign, only relevant if `diffbind` is set to `True` |
 | user_peaks         | String  | Path to the user peaks file, **only relevant if `diffbind` is set to `True`**, and user peaks are to be used, empty string to use the peaks called by the pipeline |
 | user_peak_caller   | String  | The peak caller used to generate the user peaks, **only relevant if `diffbind` is set to `True`**, and user peaks are to be used, empty string otherwise |
-| path_to_regions    | String  | The path to the regions to use for peak annonation    |
+| path_to_regions    | String  | !!! SUMMARY PLOTS HARDCODED FOR TEs FROM UCSC SO FAR - Summary plots might be wrong - Other stuff should be fine !!! The path to the regions to use for peak annonation |
 | compute_matrix     | Bool    | Whether or not to compute the matrix                  |
 | compute_matrix_type| String  | The type of matrix to compute, available options : `reference-point` or `scale-regions` |
 | upstream           | Integer | Distance upstream of the start site of the regions defined in the region file |

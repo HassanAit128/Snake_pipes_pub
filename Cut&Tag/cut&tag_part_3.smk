@@ -187,6 +187,8 @@ def generate_rule_all_input(files):
             rule_all_input.extend(diffbinds)
             diffbinds_rdata = expand("{run_dir}/DiffBind/diffbind_mapq{q}_{dupli}_duplicates.Rdata", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
             rule_all_input.extend(diffbinds_rdata)
+            plots = expand("{run_dir}/DiffBind/diffbind_mapq{q}_{dupli}_duplicates_diffbind_annotated_TE_summary.png", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
+            rule_all_input.extend(plots)
         if COMPUTE_MATRIX:
             matrices = expand("{run_dir}/Matrix/mapq{q}_{dupli}_duplicates_matrix.gz", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
             rule_all_input.extend(matrices)
@@ -202,7 +204,28 @@ rule_all_input, downsampled_samples, non_downsampled_samples = generate_rule_all
 ############################################# RULES ############################################
 rule all:
     input:
+        rule_all_input,
+        f"{DIRECTORY}/{RUN_NAME}_report.html"
+    
+rule report:
+    input:
         rule_all_input
+    output:
+        "{run_dir}/{run}_report.html"
+    params:
+        run_dir = DIRECTORY,
+        run = RUN_NAME,
+        summaries = glob.glob(f"{DIRECTORY}/stats/Summary/*"),
+        dir = DIRECTORY,
+        total_samples = len(downsampled_samples) + len(non_downsampled_samples),
+        multiqc_path = f"{DIRECTORY}/multiqc_report.html",
+        multiqc_trimmed_path = f"{DIRECTORY}/Trimmed_Fastq/multiqc_report.html",
+        Mode = "CUT&Tag" if not ATAC_SEQ_MODE else "ATAC-seq"
+    singularity: "docker://hasba/pyrpsta:latest"
+    shell:
+        """
+        python Scripts/report.py --run {params.run} --summaries {params.summaries} --dir {params.run_dir} --total_samples {params.total_samples} --multiqc_path {params.multiqc_path} --multiqc_trimmed_path {params.multiqc_trimmed_path} --Mode "{params.Mode}"
+        """
 
 rule find_read_count:
     input:
@@ -319,10 +342,20 @@ rule annotate_peaks:
         """
         for peak_file in {params.peaks}; do
             echo "Processing $peak_file"
-            awk 'BEGIN {{OFS="\\t"}} {{print $1, $2, $3}}' {params.run_dir}/DiffBind/$(basename $peak_file .bed).bed > {params.run_dir}/DiffBind/$(basename $peak_file .bed)_mod.bed
-            intersectBed  -a {params.run_dir}/DiffBind/$(basename $peak_file .bed)_mod.bed -b {params.regions} -wao {params.overlaps_param} > {params.run_dir}/DiffBind/$(basename $peak_file .bed)_annotated.bed
+            intersectBed  -a $peak_file -b {params.regions} -wao {params.overlaps_param} > {params.run_dir}/DiffBind/$(basename $peak_file .bed)_annotated.bed
         done
         """
+
+rule plot_annotation:
+    input:
+        annotated_peaks = expand("{run_dir}/DiffBind/diffbind_mapq{q}_{dupli}_duplicates_diffbind_annotated.bed", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
+    output:
+        expand("{run_dir}/DiffBind/diffbind_mapq{q}_{dupli}_duplicates_diffbind_annotated_TE_summary.png", run_dir = DIRECTORY, q = MAPQ, dupli = ['without', 'with'] if RMDUP and ALSO_WITH_DUPLICATES else ['without'] if RMDUP else ['with'])
+    params:
+        run_dir = DIRECTORY
+    script:
+        "Scripts/a_plots.R"      
+
         
 rule compute_matrix:
     input:
@@ -371,8 +404,8 @@ rule tobias:
     shell:
         """
         python Scripts/tobias.py -q {params.mapq} -d {params.run_dir} -dm {params.des_mat} -b {input} -g {params.genome} -p "{params.macs2_params}" -c {params.uropa_config} -m {params.motifs} -bl {params.blacklist} --cores {threads} -gs {params.genomesize}
-        """
-    
+        """    
+
 rule write_parameters:
     output:
         "{run_dir}/{run_name}_parameters_summary_part_3.txt"

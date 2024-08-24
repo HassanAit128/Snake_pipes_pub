@@ -61,13 +61,13 @@ NB: Rebuilding the singularity image is possible, these, are required:
 - [Docker](https://www.docker.com/)
 - [Singularity](https://sylabs.io/guides/3.5/user-guide/installation.html)
 
-The files used to build the images are available [here](docker/).
+The files used to build the images are available [here](Docker/).
 
 ## Installation
 To install the pipeline, you can clone the repository using the following command:
 ```bash
-git clone https://github.com/HassanAit128/Snake_pipes_pub.git
-cd WGBS/
+git clone https://github.com/xxxxxx/xxxxxxxxxxx.git
+cd xxxxxxxxxxx
 ```
 No further installation is required. Unless one wishes to edit and rebuild the docker/singularity image, in which case the following commands can be used:
 ```bash

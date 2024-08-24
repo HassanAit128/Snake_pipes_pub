@@ -91,7 +91,7 @@ def run_tobias(run_dir, bam_files, genome, peaks, blacklist, motifs, cores):
         print(f"Successfully ran TOBIAS ATACorrect for {bam}")
     print(f"STEP2: Running TOBIAS FootprintScores for {bam_files}")
     for bam in bam_files:
-        result2 = subprocess.run(f"TOBIAS FootprintScores --signal {run_dir}/TOBIAS/ATACorrect/{bam.split('/')[-1].split('.')[0]}.corrected.bw --regions {peaks} --output {run_dir}/TOBIAS/FootprintScores/{bam.split('/')[-1].split('.')[0]}_footprints.bw --cores {cores}", shell=True)
+        result2 = subprocess.run(f"TOBIAS FootprintScores --signal {run_dir}/TOBIAS/ATACorrect/{bam.split('/')[-1].split('.')[0]}_corrected.bw --regions {peaks} --output {run_dir}/TOBIAS/FootprintScores/{bam.split('/')[-1].split('.')[0]}_footprints.bw --cores {cores}", shell=True)
         if result2.returncode != 0:
             sys.exit('\033[91m' + f"Error running TOBIAS FootprintScores with return code {result2.returncode}" + '\033[0m')
         print(f"Successfully ran TOBIAS FootprintScores for {bam}")
@@ -120,11 +120,8 @@ if __name__ == '__main__':
     
     for q in args.mapq:
         files_q = [x for x in args.bam_files if f"mapq{q}" in x]
-        print('1', files_q)
         files_q_rmdup = [x for x in files_q if "without_duplicates" in x]
-        print('2', files_q_rmdup)
         files_q_no_rmdup = [x for x in files_q if "with_duplicates" in x]  
-        print('3', files_q_no_rmdup)
         if files_q_rmdup != []:
             merged_bam_files = merge_bam_files(args.design_matrix, files_q_rmdup, args.run_dir)
             bed_files = run_macs2(args.run_dir, merged_bam_files, args.genome_size, args.params)
