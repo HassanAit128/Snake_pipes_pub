@@ -3,19 +3,7 @@ import sys
 import argparse
 import csv
 import subprocess
-
-def get_groups(design_matrix):
-    with open(design_matrix, newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        conditions = []
-        samples = []
-        for row in reader:
-            conditions.append(row["Condition"])
-            samples.append(row["SampleID"])
-        unique_conditions = list(set(conditions))
-        condition1_samples = [samples[i] for i in range(len(samples)) if conditions[i] == unique_conditions[0]]
-        condition2_samples = [samples[i] for i in range(len(samples)) if conditions[i] == unique_conditions[1]]
-    return unique_conditions, condition1_samples, condition2_samples
+from shared_functions import get_groups
 
 def merge_bam_files(design_matrix, bam_files, output):
     unique_conditions, condition1_samples, condition2_samples = get_groups(design_matrix)
@@ -82,26 +70,6 @@ def run_uropa(run_dir, config):
         sys.exit('\033[91m' + f"Error creating header file with return code {result2.returncode}" + '\033[0m')
     print(f"Successfully ran UROPA")
     
-def run_tobias(run_dir, bam_files, genome, peaks, blacklist, motifs, cores):
-    print(f"STEP1: Running TOBIAS ATACorrect for {bam_files}")
-    for bam in bam_files:
-        result1 = subprocess.run(f"TOBIAS ATACorrect --bam {bam} --genome {genome} --peaks {peaks} --blacklist {blacklist} --outdir {run_dir}/TOBIAS/ATACorrect --cores {cores}", shell=True)
-        if result1.returncode != 0:
-            sys.exit('\033[91m' + f"Error running TOBIAS ATACorrect with return code {result1.returncode}" + '\033[0m')
-        print(f"Successfully ran TOBIAS ATACorrect for {bam}")
-    print(f"STEP2: Running TOBIAS FootprintScores for {bam_files}")
-    for bam in bam_files:
-        result2 = subprocess.run(f"TOBIAS FootprintScores --signal {run_dir}/TOBIAS/ATACorrect/{bam.split('/')[-1].split('.')[0]}_corrected.bw --regions {peaks} --output {run_dir}/TOBIAS/FootprintScores/{bam.split('/')[-1].split('.')[0]}_footprints.bw --cores {cores}", shell=True)
-        if result2.returncode != 0:
-            sys.exit('\033[91m' + f"Error running TOBIAS FootprintScores with return code {result2.returncode}" + '\033[0m')
-        print(f"Successfully ran TOBIAS FootprintScores for {bam}")
-    print(f"STEP3: Running TOBIAS BINDetect for {bam_files}")
-    result3 = subprocess.run(f"TOBIAS BINDetect --motifs {motifs} --signals {run_dir}/TOBIAS/FootprintScores/{bam_files[0].split('/')[-1].split('.')[0]}_footprints.bw {run_dir}/TOBIAS/FootprintScores/{bam_files[1].split('/')[-1].split('.')[0]}_footprints.bw --genome {genome} --peaks {peaks} --peak_header {run_dir}/TOBIAS/merged_peaks_annotated_header.txt --outdir {run_dir}/TOBIAS/BINDetect_output --cores {cores}", shell=True)         
-    if result3.returncode != 0:
-        sys.exit('\033[91m' + f"Error running TOBIAS BINDetect with return code {result3.returncode}" + '\033[0m')
-    print(f"Successfully ran TOBIAS BINDetect")
-    print(f"TOBIAS analysis completed successfully")
-    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create TOBIAS input files')
@@ -129,7 +97,6 @@ if __name__ == '__main__':
             create_uropa_input(args.run_dir, args.config)
             run_uropa(args.run_dir, f"{args.run_dir}/TOBIAS/uropa_config.json")
             merged_bam_files_list = [merged_bam_files[0], merged_bam_files[1]]
-            run_tobias(args.run_dir, merged_bam_files, args.genome, f"{args.run_dir}/TOBIAS/merged_peaks_annotated_finalhits.bed", args.blacklist, args.motifs, args.cores)
         if files_q_no_rmdup != []:
             merged_bam_files = merge_bam_files(args.design_matrix, files_q_no_rmdup, args.run_dir)
             bed_files = run_macs2(args.run_dir, merged_bam_files, args.genome_size, args.params)
@@ -137,6 +104,5 @@ if __name__ == '__main__':
             create_uropa_input(args.run_dir, args.config)
             run_uropa(args.run_dir, f"{args.run_dir}/TOBIAS/uropa_config.json")
             merged_bam_files_list = [merged_bam_files[0], merged_bam_files[1]]
-            run_tobias(args.run_dir, merged_bam_files, args.genome, f"{args.run_dir}/TOBIAS/merged_peaks_annotated_finalhits.bed", args.blacklist, args.motifs, args.cores)
     
 

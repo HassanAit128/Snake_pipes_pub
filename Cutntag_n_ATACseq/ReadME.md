@@ -59,8 +59,8 @@ The files used to build the images are available [here](docker/).
 ## Installation
 To install the pipeline, you can clone the repository using the following command:
 ```bash
-git clone https://github.com/xxxxxx/xxxxxxxxxxx.git
-cd xxxxxxxxxxx
+git clone https://github.com/HassanAit128/Snake_pipes_pub.git
+cd Cutntag_n_ATACseq
 ```
 No further installation is required. Unless one wishes to edit and rebuild the docker/singularity image, in which case the following commands can be used:
 ```bash

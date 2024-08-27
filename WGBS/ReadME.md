@@ -66,8 +66,8 @@ The files used to build the images are available [here](Docker/).
 ## Installation
 To install the pipeline, you can clone the repository using the following command:
 ```bash
-git clone https://github.com/xxxxxx/xxxxxxxxxxx.git
-cd xxxxxxxxxxx
+git clone https://github.com/HassanAit128/Snake_pipes_pub.git
+cd WGBS
 ```
 No further installation is required. Unless one wishes to edit and rebuild the docker/singularity image, in which case the following commands can be used:
 ```bash
@@ -134,11 +134,17 @@ A [design matrix file](Config/design_template.csv) in `csv` format is also requi
 | run_DMR_analysis | bool | Yes | Whether to run DMR analysis.  |
 | DMR_analysis_tool | string | Yes | DMR analysis tool to use <span style="color: blue;"> **(metilene, methylkit)**.</span>  |
 | minimum_coverage | int | No | Minimum read coverage for DMR analysis.|
-| path_to_metilene | string | No | Path to the metilene executable. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
+| minMethDiff | float | No | Minimum methylation difference for a DMR. Default :  0.1 |
+| mincpgs | int | No | Minimum number of CpGs in a DMR. Default : 5 |
+| pvalue | float | No | P-value threshold for DMR analysis. Default : 0.05|
+| min_dmr_length | int | No | Minimum length of a DMR. Default : 200 |
+| regions_for_annotation | string | Yes | Path to the regions for annotation of DMRs. |
+| minimum_required_overlap | int | No | Minimum required overlap for DMRs. Can be one of "-f 0.XX -F 0.XX", "-f 0.XX" or "-F 0.XX" with -a the DMRs, -b the regions. Default : '-f 0.90' |
+| path_to_metilene | string | No | Path to the metilene executable. EMpty string "", if in path. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
 | metilene_cores | int | No | Number of cores to use for metilene. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
-| maxdist | int | No | Maximum distance between CpGs to be considered in the same DMR. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
-| mincpgs | int | No | Minimum number of CpGs in a DMR. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
-| minMethDiff | float | No | Minimum methylation difference for a DMR. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
+| maxdist | int | No | Maximum distance between CpGs to be considered in the same DMR. Default: 300. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
+| metilene_args | string | No | Additional arguments for metilene. <span style="color: red;">*Only relevant if using **metilene***.</span>  |
+| methylkit_regions | string | No | Path to the regions for the methylkit analysis on predefined regions. <span style="color: red;">*Only relevant if using **methylkit***.</span>  |
 | cleanup | bool | Yes | Whether to cleanup intermediate files.  |
 
 

@@ -6,7 +6,7 @@ import os
 import re
 import csv
 import time
-from Scripts.shared_functions import check_if_design_matrix_is_valid
+from Scripts.shared_functions import check_if_design_matrix_is_valid, get_groups
 
 start = time.time()
 
@@ -342,7 +342,7 @@ rule annotate_peaks:
         """
         for peak_file in {params.peaks}; do
             echo "Processing $peak_file"
-            intersectBed  -a $peak_file -b {params.regions} -wao {params.overlaps_param} > {params.run_dir}/DiffBind/$(basename $peak_file .bed)_annotated.bed
+            intersectBed -a $peak_file -b {params.regions} -wao {params.overlaps_param} > {params.run_dir}/DiffBind/$(basename $peak_file .bed)_annotated.bed
         done
         """
 
@@ -384,11 +384,17 @@ rule compute_matrix:
         python Scripts/compute_matrix.py -b {input.bw} -a {input.annotated_peaks} -sr {params.specific} -d {params.design_matrix} -r {params.run_dir} -t {params.type_a} -ao "{params.addit_params}" -pp {params.plot_profile} -ppa "{params.pp_addit_params}" -ph {params.plot_heatmap} -pha "{params.ph_addit_params}" -cr {params.custom_regions} -p {threads} -up {params.upstream} -down {params.downstream}
         """
 
-rule tobias:
+unique_conditions, condition1_samples, condition2_samples = get_groups(DESIGN_MATRIX_FILE)
+bam1, bam2 = "", ""
+if len(unique_conditions) == 2:
+    bam1 = f"{DIRECTORY}/TOBIAS/{unique_conditions[0]}.bam"
+    bam2 = f"{DIRECTORY}/TOBIAS/{unique_conditions[1]}.bam"
+
+rule tobias_prep:
     input:
         matrix = expand("{run_dir}/DS/{sample}.downsampled.bam", sample=[f for f in downsampled_samples], run_dir = DIRECTORY),
     output:
-        "{run_dir}/TOBIAS/BINDetect_output/bindetect_results.txt"
+        expand("{run_dir}/TOBIAS/{sample}.bam", sample=[f for f in [bam1.split('/')[-1].split(".")[0], bam2.split('/')[-1].split(".")[0]]], run_dir = DIRECTORY)
     params:
         run_dir = DIRECTORY,
         des_mat = DESIGN_MATRIX_FILE,
@@ -404,11 +410,67 @@ rule tobias:
     shell:
         """
         mkdir -p {params.run_dir}/TOBIAS
-        mkdir -p {params.run_dir}/TOBIAS/BINDetect_output
-        mkdir -p {params.run_dir}/TOBIAS/FootprintScores
-        mkdir -p {params.run_dir}/TOBIAS/ATACorrect
         python Scripts/tobias.py -q {params.mapq} -d {params.run_dir} -dm {params.des_mat} -b {input} -g {params.genome} -p "{params.macs2_params}" -c {params.uropa_config} -m {params.motifs} -bl {params.blacklist} --cores {threads} -gs {params.genomesize}
         """    
+    
+rule tobias_atac_correct:
+    input:
+        bamfiles = [bam1, bam2]
+    output:
+        expand("{run_dir}/TOBIAS/ATACorrect/{sample}_corrected.bw", sample=[b for b in [bam1.split('/')[-1].split('.')[0], bam2.split('/')[-1].split('.')[0]]], run_dir = DIRECTORY)
+    params:
+        run_dir = DIRECTORY,
+        genome = config['path_to_genome_fasta'],
+        peaks = REGIONS,
+        blacklist = config['blacklist'],
+    threads: config['nbCores_TOBIAS']
+    singularity: "docker://hasba/toburo"
+    shell:
+        """
+        mkdir -p {params.run_dir}/TOBIAS/ATACorrect
+        for bam in {input.bamfiles}; do
+            echo "---> Processing $bam"
+            TOBIAS ATACorrect --bam $bam --genome {params.genome} --peaks {params.peaks} --blacklist {params.blacklist} --outdir {params.run_dir}/TOBIAS/ATACorrect --cores {threads}
+        done
+        """
+
+rule tobias_footprint_scores:
+    input:
+        bws = expand("{run_dir}/TOBIAS/ATACorrect/{sample}_corrected.bw", sample=[b for b in [bam1.split('/')[-1].split('.')[0], bam2.split('/')[-1].split('.')[0]]], run_dir = DIRECTORY)
+    output:
+        expand("{run_dir}/TOBIAS/FootprintScores/{sample}_footprints.bw", sample=[b for b in [bam1.split('/')[-1].split('.')[0], bam2.split('/')[-1].split('.')[0]]], run_dir = DIRECTORY)
+    params:
+        run_dir = DIRECTORY,
+        cores = config['nbCores_TOBIAS'],
+        peaks = REGIONS
+    singularity: "docker://hasba/toburo"
+    shell:
+        """
+        mkdir -p {params.run_dir}/TOBIAS/FootprintScores
+        for sample in {params.samples}; do
+            bw={params.run_dir}/TOBIAS/ATACorrect/${{sample}}_corrected.bw
+            echo "---> Processing $bw"
+            TOBIAS FootprintScores --signal $bw --regions {params.peaks} --output {params.run_dir}/TOBIAS/FootprintScores/$sample_footprints.bw --cores {params.cores}
+        done
+        """
+
+rule tobias_bindetect:
+    input:
+        expand("{run_dir}/TOBIAS/FootprintScores/{sample}_footprints.bw", sample=[b for b in [bam1.split('/')[-1].split('.')[0], bam2.split('/')[-1].split('.')[0]]], run_dir = DIRECTORY)
+    output:
+        "{run_dir}/TOBIAS/BINDetect_output/bindetect_results.txt"
+    params:
+        run_dir = DIRECTORY,
+        motifs = config['motifs'],
+        genome = config['path_to_genome_fasta'],
+        peaks = REGIONS,
+    singularity: "docker://hasba/toburo"
+    threads: config['nbCores_TOBIAS']
+    shell:
+        """
+        mkdir -p {params.run_dir}/TOBIAS/BINDetect_output
+        TOBIAS BINDetect --motifs {params.motifs} --signals {input} --genome {params.genome} --peaks {params.peaks} --peak_header {params.run_dir}/TOBIAS/merged_peaks_annotated_header.txt --outdir {params.run_dir}/TOBIAS/BINDetect_output --cores {threads}
+        """
 
 rule write_parameters:
     output:

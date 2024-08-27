@@ -98,19 +98,20 @@ DMR_analysis:
   run_DMR_analysis: true 
   DMR_analysis_tool: "metilene" # (methylkit or metilene)
   minimum_coverage: 5
+  minMethDiff: 0.1
+  mincpgs: 5
+  pvalue: 0.01
+  min_DMR_length: 100
+  regions_for_annotation: "/path/to/regions.bed"
+  minimum_required_overlap: "-f 0.90" # i.e. "-f 0.XX -F 0.XX" or "-f 0.XX" or "-F 0.XX"
 
 metilene:
   path_to_metilene: "/path/to/metilene" # '' if in PATH
   metilene_cores: 4
   maxdist: 300
-  mincpgs: 5
-  minMethDiff: 0.1
   metilene_args: ""
 
 methylkit:
-  min_methylation_diff: 10
-  pvalue: 0.01
-  min_DMR_length: 100
   regions: "/path/to/regions.bed"
   
 # ---------------------------------

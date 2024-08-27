@@ -26,6 +26,21 @@ def open_user_design_matrix(DESIGN_MATRIX):
             design_matrix[sample] = row
     return design_matrix
 
+
+def get_groups(design_matrix):
+    with open(design_matrix, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        conditions = []
+        samples = []
+        for row in reader:
+            conditions.append(row["Condition"])
+            samples.append(row["SampleID"])
+        unique_conditions = list(set(conditions))
+        condition1_samples = [samples[i] for i in range(len(samples)) if conditions[i] == unique_conditions[0]]
+        condition2_samples = [samples[i] for i in range(len(samples)) if conditions[i] == unique_conditions[1]]
+    return unique_conditions, condition1_samples, condition2_samples
+
+
 def check_if_design_matrix_is_valid(DESIGN_MATRIX, SAMPLES):
     """
     Check if the design matrix is valid by checking if all required columns are present, 

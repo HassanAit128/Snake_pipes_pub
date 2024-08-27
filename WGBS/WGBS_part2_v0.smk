@@ -99,8 +99,11 @@ def set_up_output_files():
                 metilene_output = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.txt"
                 all_output.append(metilene_output)
             elif DMR_analysis_tool.lower() == 'methylkit':
-                methylkit_output = f"{PROJECT_DIR}/METHYLATION/DMR/{config['name']}_methylkit_analysis.RData"
+                methylkit_output = f"{PROJECT_DIR}/METHYLATION/DMR/methylkit_analysis.RData"
                 all_output.append(methylkit_output)
+            all_output.append(f"{PROJECT_DIR}/METHYLATION/DMR/ALL_annotated_regions.bed")
+            all_output.append(f"{PROJECT_DIR}/METHYLATION/DMR/TE_summary.png")
+            all_output.append(f"{PROJECT_DIR}/METHYLATION/DMR/TE_summary_2.png")
     return all_output
 ############################################################################################################
 
@@ -110,7 +113,30 @@ output_all = set_up_output_files()
 ############################################# RULES ########################################################
 rule ALL:
     input:
+        output_all + [PROJECT_DIR + '/FINAL_REPORT/' + config["name"] + '_report.html']
+
+rule report:
+    input:
         output_all
+    output:
+        "{run_dir}/FINAL_REPORT/{run}_report.html"
+    params:
+        design_matrix = DESIGN_MATRIX,
+        run_dir = WORKING_DIR,
+        run = config['name'],
+        cores = SAMTOOLS_CORES,
+        align_tool = ALIGN_TOOL,
+        dmr_tool = DMR_analysis_tool,
+        downsample = DOWNSAMPLE,
+        lensamples = len(SAMPLES),
+        multiqc_path = PROJECT_DIR + '/multiqc_report.html',
+        multiqc_trimmed_path = PROJECT_DIR + '/REPORTS/TRIM_REPORTS/fastqc_reports' if TRIM else "None",
+        genome = GENOME
+    singularity: "docker://hasba/pyrp"
+    shell:
+        """
+        python Scripts/report.py --design_matrix {params.design_matrix} --dir {params.run_dir} --run {params.run} --cores {params.cores} --tool {params.align_tool} --tool_methyl {params.dmr_tool} --downsampling {params.downsample} --total_samples {params.lensamples} --multiqc_path {params.multiqc_path} --multiqc_trimmed_path {params.multiqc_trimmed_path} --genome {params.genome}
+        """
 
 rule trim_galore:
     input:
@@ -159,7 +185,7 @@ use rule align from alignment_module as align_rule with:
     singularity: 
         "docker://hasba/main_d"
     log:
-        log = "{run_dir}/LOGS/ALIGN_LOGS/{sample}_bismark.log"
+        log = "{run_dir}/LOGS/ALIGN_LOGS/{sample}_align.log"
 
 module deduplication_module:
     snakefile:
@@ -411,8 +437,8 @@ rule run_metilene:
         matrix = DESIGN_MATRIX,
         samples = SAMPLES,
         maxdist = config['metilene']['maxdist'],
-        mincpgs = config['metilene']['mincpgs'],
-        minMethDiff = config['metilene']['minMethDiff'],
+        mincpgs = config['DMR_analysis']['mincpgs'],
+        minMethDiff = config['DMR_analysis']['minMethDiff'],
         additional_params = config['metilene']['metilene_args'] if config['metilene']['metilene_args'] != "" else "None"
     threads: config['metilene']['metilene_cores']
     shell:
@@ -424,15 +450,16 @@ rule run_methylkit:
     input:
         calls = expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted.bismark.cov.gz", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS) if CALL_METHYLATION_TOOL == 'bismark' else expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted_CpG.methylKit", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS)
     output:
-        "{run_dir}/METHYLATION/DMR/{run}_methylkit_analysis.RData"
+        out1 = "{run_dir}/METHYLATION/DMR/methylkit_analysis.RData",
+        out2 = "{run_dir}/METHYLATION/DMR/ALL_methylkit_regions.bed"
     params:
         run_dir = PROJECT_DIR,
         genome = GENOME,
         pp = "bismark" if CALL_METHYLATION_TOOL == 'bismark' else "amp",
         mincov = config['DMR_analysis']['minimum_coverage'],
-        min_methylation_diff = config['methylkit']['min_methylation_diff'],
-        pvalue = config['methylkit']['pvalue'],
-        min_DMR_length = config['methylkit']['min_DMR_length'],
+        min_methylation_diff = config['DMR_analysis']['minMethDiff'] * 100,
+        pvalue = config['DMR_analysis']['pvalue'],
+        min_DMR_length = config['DMR_analysis']['min_DMR_length'],
         regions = config['methylkit']['regions'],
         design_matrix = DESIGN_MATRIX,
         run = config['name']
@@ -440,5 +467,37 @@ rule run_methylkit:
         "docker://hasba/mekit"
     script:
         "Scripts/methylkit.R"
+
+rule annotate_DMRs:
+    input:
+        DMRs = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.txt" if DMR_analysis_tool.lower() == 'metilene' else f"{PROJECT_DIR}/METHYLATION/DMR/ALL_methylkit_regions.bed"
+    output:
+        "{run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed"
+    params:
+        run_dir = PROJECT_DIR,
+        overlap = config['DMR_analysis']['minimum_required_overlap'],
+        regions = config['DMR_analysis']['regions_for_annotation']
+    singularity: 
+        "docker://hasba/main_d"
+    shell:
+        """
+        intersectBed -a {input.DMRs} -b {params.regions} -wao {params.overlap} > {params.run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed
+        """
+
+rule make_plots:
+    input:
+        regions = "{run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed"
+    output:
+        out1 = "{run_dir}/METHYLATION/DMR/TE_summary.png",
+        out2 = "{run_dir}/METHYLATION/DMR/TE_summary_2.png"
+    params:
+        run_dir = PROJECT_DIR,
+        pvalue_cutoff = config['DMR_analysis']['pvalue'],
+        meth_diff_cutoff = config['DMR_analysis']['minMethDiff'] if DMR_analysis_tool.lower() == 'metilene' else config['DMR_analysis']['minMethDiff'] * 100,
+        min_DMR_length = config['DMR_analysis']['min_DMR_length'],
+    singularity: 
+        "docker://hasba/mekit"
+    script:
+        "Scripts/plots.R"
 
 ############################################################################################################
