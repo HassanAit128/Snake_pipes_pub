@@ -5,6 +5,19 @@ import glob
 import pandas as pd
 
 def extract_bsmap_stats(file):
+    """
+    Get alignement stats from BSMap log file.
+    
+    Parameters
+    ----------
+    file : str
+        Path to the BSMap log file.
+        
+    Returns
+    -------
+    stats : dict
+        Dictionary containing the alignment stats.
+    """
     stats = {}
     with open(file, "r") as f :
         data = f.read()
@@ -18,6 +31,19 @@ def extract_bsmap_stats(file):
     return stats
 
 def extract_bismark_stats(file):
+    """
+    Extract alignment stats from Bismark report file.
+
+    Parameters
+    ----------
+    file : str
+        Path to the Bismark report file.
+        
+    Returns
+    -------
+    stats : dict
+        Dictionary containing the alignment stats.
+    """
     stats = {}
     with open(file, "r") as f :
         data = f.read()
@@ -30,6 +56,23 @@ def extract_bismark_stats(file):
     return stats
 
 def create_align_reports(run_dir, run_name, tool):
+    """
+    Create alignment reports for each sample by calling the appropriate function depending on the alignment tool used.
+    
+    Parameters
+    ----------
+    run_dir : str
+        Path to the run directory.
+    run_name : str
+        Name of the run.
+    tool : str
+        Alignment tool used (BSMap or Bismark).
+        
+    Returns
+    -------
+    stats : list
+        List of dictionaries containing the alignment stats for each sample.
+    """
     stats = []
     if tool.lower() == "bsmap":
         print("--- Extracting BSMap stats ---")
@@ -44,11 +87,47 @@ def create_align_reports(run_dir, run_name, tool):
     return stats
         
 def samtools_count(bam_file, cores):
+    """
+    Count the number of reads in a BAM file using samtools.
+    
+    Parameters
+    ----------
+    bam_file : str
+        Path to the BAM file.
+    cores : int
+        Number of cores to use.
+    
+    Returns
+    -------
+    count : int
+        Number of reads in the BAM file.
+    """
     cmd = f"samtools view -@ {cores} -c {bam_file}"
     count = subprocess.check_output(cmd, shell=True).decode().strip()
     return count 
 
 def get_bam_stats(samples, run_dir, run_name, cores, downsampling):
+    """
+    Count the number of reads in the BAM files for each sample and for each step of the pipeline.
+    
+    Parameters
+    ----------
+    samples : list
+        List of sample IDs.
+    run_dir : str
+        Path to the run directory.
+    run_name : str
+        Name of the run.
+    cores : int
+        Number of cores to use when calling samtools.
+    downsampling : bool
+        Whether downsampling was performed or not.
+        
+    Returns
+    -------
+    stats : list
+        List of dictionaries containing the alignment stats for each sample.
+    """
     stats = []
     for sample in samples:
         print(f"--- Getting stats for {sample} ---")
@@ -64,6 +143,29 @@ def get_bam_stats(samples, run_dir, run_name, cores, downsampling):
     return stats
 
 def get_merge_and_save_stats(design_matrix, run_dir, run_name, cores, tool, downsampling):
+    """
+    'Main' function to get alignment stats and BAM stats, merge them with the design matrix and save the final report.
+    
+    Parameters
+    ----------
+    design_matrix : str
+        Path to the design matrix.
+    run_dir : str
+        Path to the run directory.
+    run_name : str
+        Name of the run.
+    cores : int
+        Number of cores to use when calling samtools.
+    tool : str
+        Alignment tool used (BSMap or Bismark).
+    downsampling : bool
+        Whether downsampling was performed or not.
+    
+    Returns
+    -------
+    merged_df : pandas.DataFrame
+        DataFrame containing the final report.
+    """
     print("--- Reading design matrix ---")
     design_matrix = pd.read_csv(design_matrix)
     print("--- OK ---")

@@ -6,8 +6,8 @@ import sys
 
 min_version("8.0.1")
 
-ansi = {'underline': '\033[4m', 'bold': '\033[1m', 'red': '\033[91m', 'end': '\033[0m'}
 ############################################# CONFIGURATION ################################################
+ansi = {'underline': '\033[4m', 'bold': '\033[1m', 'red': '\033[91m', 'end': '\033[0m'}
 RUN = config['name']
 WORKING_DIR = config['working_dir'] 
 if not os.path.exists(WORKING_DIR):
@@ -43,7 +43,7 @@ if ALIGN:
             if not os.path.exists(GENOME_IDX_DIR):
                 sys.exit('\033[91m' + 'ERROR: You need to specify a valid path to the genome index' + '\033[0m')
         else:
-            sys.exit('\033[91m' + 'ERROR: You need to specify a path to the genome fasta file or set run_indexing to True' + '\033[0m')
+            sys.exit('\033[91m' + 'ERROR: You need to specify a path to the genome fasta file as run_indexing was set to True' + '\033[0m')
         ALIGN_CORES = config['bismark']['bismark_cores']
         if ALIGN_CORES is None or ALIGN_CORES == 0:
             ALIGN_CORES = 1
@@ -61,7 +61,6 @@ if ALIGN:
 
 DEDUP = True
 CALL_METHYLATION_TOOL = config['call_methylation']['methylation_caller'].lower() 
-
 if DEDUP:
     DEDUP_TOOL = config['deduplication']['deduplication_tool'].lower()
     if DEDUP_TOOL == 'picard':
@@ -70,7 +69,7 @@ if DEDUP:
         if ALIGN_TOOL == 'bsmap':
             sys.exit('\033[91m' + 'ERROR: Bismark deduplication is not compatible with BSMap alignment' + '\033[0m')
         if CALL_METHYLATION_TOOL == 'methyldackel':
-            sys.exit('\033[91m' + 'ERROR: Bismark deduplication seems to cause errors with Methyldackel methylation calling, please use Picard instead.' + '\033[0m')
+            sys.exit('\033[91m' + 'ERROR: Bismark deduplication seems to cause errors with Methyldackel methylation calling, please use Picard for deduplication instead, OR, use Bismark for methylation calling' + '\033[0m') 
         DEDUP_ARGS = config['deduplication']['bismark_deduplication_args'] 
     else:
         sys.exit('\033[91m' + 'ERROR: Deduplication tool must be either picard or bismark' + '\033[0m')
@@ -120,6 +119,5 @@ for pattern in patterns:
 pattern = re.compile(r'(.+)_R1.*\.(fq|fq\.gz|fastq|fastq\.gz)$')
 SAMPLES = [pattern.match(os.path.basename(x)).group(1) for x in FILE_LIST if pattern.match(os.path.basename(x))]
 if FILE_LIST == [] or SAMPLES == []:
-    sys.exit('\033[91m' + 'ERROR: NO FASTQ files found in the project directory. Check the path to the FASTQ files' + '\033[0m')
+    sys.exit('\033[91m' + 'ERROR: NO FASTQ files found in the specified raw data directory. File extensions must be either .fq, .fq.gz, .fastq, or .fastq.gz. The files must be paired-end and have the format *_R1* and *_R2*' + '\033[0m')
 ############################################################################################################
-

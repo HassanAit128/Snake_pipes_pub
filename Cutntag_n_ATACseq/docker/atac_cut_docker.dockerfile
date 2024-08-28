@@ -56,10 +56,7 @@ RUN conda install -y -c bioconda -c conda-forge \
 RUN conda install -y -c bioconda -c conda-forge \
     multiqc    
 
-# Install R packages
-RUN R --slave -e 'install.packages("tidyverse", repos = "https://cran.irsn.fr/")' \
-    && R --slave -e 'install.packages("BiocManager", repos = "https://cran.irsn.fr/")' \
-    && R --slave -e 'BiocManager::install("DiffBind")' \
-    && R --slave -e 'BiocManager::install("Rsamtools")'
-
+# Set environment variables
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
 ENV PATH="/miniconda3/bin:${PATH}"

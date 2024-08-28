@@ -31,8 +31,5 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 RUN R --slave -e 'install.packages("tidyverse", repos = "https://cran.irsn.fr/")' \
     && R --slave -e 'install.packages("BiocManager", repos = "https://cran.irsn.fr/")' \
     && R --slave -e 'BiocManager::install(version = "3.16")' \
-    && R --slave -e 'BiocManager::install("DiffBind")' \
-    && R --slave -e 'BiocManager::install("Rsamtools")'
-
-
-RUN R -e "BiocManager::install('DiffBind')"
+    && R --slave -e 'BiocManager::install("Rsamtools")' \
+    && R -e "BiocManager::install('DiffBind')"

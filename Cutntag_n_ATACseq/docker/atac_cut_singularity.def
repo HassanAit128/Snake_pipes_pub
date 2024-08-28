@@ -53,12 +53,8 @@ From: ubuntu:20.04
     conda install -y -c bioconda -c conda-forge picard=2.23.8
     conda install -y -c bioconda -c conda-forge deeptools
     conda install -y -c bioconda -c conda-forge multiqc
-    R --slave -e 'install.packages("tidyverse", repos = "https://cran.irsn.fr/")'    
-    R --slave -e 'install.packages("BiocManager", repos = "https://cran.irsn.fr/")'    
-    R --slave -e 'BiocManager::install("DiffBind")'    
-    R --slave -e 'BiocManager::install("Rsamtools")'    
     apt-get clean
     
-
+# Set the environment variables
 %environment
     export PATH="/miniconda3/bin:${PATH}"

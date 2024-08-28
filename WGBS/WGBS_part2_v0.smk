@@ -1,8 +1,48 @@
-include: "Modules/common.smk"
+## ------------------------------------------
+## Snakemake workflow for WGBS data analysis
+## ------------------------------------------
+## - Part 2 - Alignment/Downstream Analysis -
+## ------------------------------------------
+## Author: Hassan AitOu
+## Last updated: 2024-08-27
+## Purpose: This workflow is used to perform the alignment of the reads to the genome (with optional trimming of raw reads), deduplication, methylation calling, and DMR analysis.
+## Requirements: 
+##       - The raw data should be in fastq format (compressed or not).
+##       - The fastq files should be paired-end, and the forward and reverse reads should have the same name and contain "_R1" and "_R2" in their names.
+##       - The genome should be in fasta format.
+## ------------------------------------------
+## Rules:
+## ------
 
-path_to_genome_folder = os.path.dirname(GENOME_PATH)
+include: "Modules/common.smk"
+import time
+import os
+from Scripts.shared_functions import check_if_design_matrix_is_valid
+
+start = time.time()
+
+onsuccess:
+    if not snakemake.rule == "help":
+        if CLEANUP:
+            shell("rm -r {PROJECT_DIR}/TEMP")
+        time_to_finish = round((time.time() - start)/60,1)
+        longest_line_length = max(len(f"OUTPUT folder is found at: {PROJECT_DIR}"), len("Running time in minutes: %s " % time_to_finish))
+        total_length = longest_line_length + 8
+        hash_count = (total_length - len("Workflow finished, no error") - 4) // 2
+        print("\n" + "#" * hash_count + "# " + "WORKFLOW FINISHED, NO ERROR" + " #" + "#" * hash_count)
+        print(f"OUTPUT folder is found at: {RESULTSDIR}")
+        print(f"Running time in minutes: {time_to_finish}")
+        print("#" * total_length + "\n\n")
+
+onerror:
+    print("\n\n###################### An error occurred ######################\n")
+    print("Running time in minutes: %s\n" % round((time.time() - start)/60,1))
+    print("\n###############################################################\n\n")
 
 ############################################# HELPER FUNCTIONS #############################################
+path_to_genome_folder = os.path.dirname(GENOME_PATH)
+check_if_design_matrix_is_valid(DESIGN_MATRIX, SAMPLES)
+
 def set_up_directories():
     """
     Create the directories needed for the pipeline
@@ -96,7 +136,7 @@ def set_up_output_files():
         all_output.extend(methylation_output)
         if DMR_analysis:
             if DMR_analysis_tool.lower() == 'metilene':
-                metilene_output = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.txt"
+                metilene_output = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.bed"
                 all_output.append(metilene_output)
             elif DMR_analysis_tool.lower() == 'methylkit':
                 methylkit_output = f"{PROJECT_DIR}/METHYLATION/DMR/methylkit_analysis.RData"
@@ -111,10 +151,12 @@ set_up_directories()
 output_all = set_up_output_files()
 
 ############################################# RULES ########################################################
+## all                 : rule to run all the rules and build all final outputs
 rule ALL:
     input:
         output_all + [PROJECT_DIR + '/FINAL_REPORT/' + config["name"] + '_report.html']
 
+## report              : rule to generate the final report with mapping statistics and methylation analysis
 rule report:
     input:
         output_all
@@ -138,6 +180,7 @@ rule report:
         python Scripts/report.py --design_matrix {params.design_matrix} --dir {params.run_dir} --run {params.run} --cores {params.cores} --tool {params.align_tool} --tool_methyl {params.dmr_tool} --downsampling {params.downsample} --total_samples {params.lensamples} --multiqc_path {params.multiqc_path} --multiqc_trimmed_path {params.multiqc_trimmed_path} --genome {params.genome}
         """
 
+# trim_galore          : rule to run Trim Galore on the raw data
 rule trim_galore:
     input:
         R1 = lambda wildcards: f"{RAW_DATA_DIR}/{wildcards.sample}_R1{get_suffixes(wildcards.sample, RAW_DATA_DIR)[0]}" + get_suffixes(wildcards.sample, RAW_DATA_DIR)[1],
@@ -168,6 +211,7 @@ module alignment_module:
     config:
         config
 
+# align                : rule to align the reads (trimmed or not) to the genome
 use rule align from alignment_module as align_rule with:
     input:
         R1 = lambda wildcards: f"{PROJECT_DIR}/TRIMMED_READS/{wildcards.sample}_R1{get_suffixes(wildcards.sample, RAW_DATA_DIR, trim = True)[0]}val_1.fq.gz" if TRIM else f"{RAW_DATA_DIR}/{wildcards.sample}_R1{get_suffixes(wildcards.sample, RAW_DATA_DIR)[0]}" + get_suffixes(wildcards.sample, RAW_DATA_DIR)[1],
@@ -193,6 +237,7 @@ module deduplication_module:
     config:
         config
 
+## dedup               : rule to deduplicate the aligned reads
 use rule dedup from deduplication_module as dedup_rule with:
     input:
         bam = lambda wildcards: f"{PROJECT_DIR}/ALIGN_BAM/{wildcards.sample}_aligned_pe.bam"
@@ -208,6 +253,7 @@ use rule dedup from deduplication_module as dedup_rule with:
         "docker://hasba/main_d"
     threads: SAMTOOLS_CORES
     
+## keep_regular        : rule to keep only the regular chromosomes (1-19 or 1-22, X, Y)
 rule keep_regular:
     input:
         bam = lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.bam" 
@@ -235,6 +281,7 @@ rule keep_regular:
         fi
         """
 
+## sort                : rule to sort the deduplicated reads
 rule sort:
     input:
         bam = lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.bam"
@@ -253,6 +300,7 @@ rule sort:
         samtools sort {params.sort_type} -@ {threads} -o {output.bam} {input.bam} 2> {log}
         """
         
+## find_read_count     : rule to count the number of reads in the sorted bam file
 rule find_read_count:
     input:
         lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.sorted.bam"
@@ -268,6 +316,7 @@ rule find_read_count:
         samtools view --threads {threads} -c {input} > {output}
         """
 
+## get_lowest_count    : rule to get the lowest read count from all samples to use for downsampling
 rule get_lowest_count:
     input:
         read_counts = expand("{run_dir}/TEMP/{sample}.read_count.txt", run_dir = PROJECT_DIR, sample = SAMPLES)
@@ -278,6 +327,7 @@ rule get_lowest_count:
         cat {input} | sort -n | head -n 1 > {output}
         """
 
+## downsample          : rule to downsample the reads to the lowest read count
 rule downsample:
     input:
         bam = lambda wildcards: f"{PROJECT_DIR}/BAMs/{wildcards.sample}.deduplicated.regular.sorted.bam",
@@ -310,6 +360,8 @@ module methylation_module:
     config:
         config
 
+## mbias_only          : rule to calculate and plot the methylation bias
+## methylation_calling : rule to call the methylation levels
 if CALL_METHYLATION_TOOL == "bismark":
     use rule mbias_only from methylation_module as mbias_only_rule with:
         input:
@@ -406,6 +458,7 @@ if CALL_METHYLATION_TOOL == "methyldackel":
 
 DS = 'ds.' if DOWNSAMPLE else ''
 
+## sort_for_metilene   : rule to sort the bedGraph file for metilene (if DMR analysis is run with metilene)
 rule sort_for_metilene:
     input: 
         call = lambda wildcards: f"{PROJECT_DIR}/METHYLATION/{wildcards.sample}.deduplicated.regular.{DS}sorted.bedGraph.gz" if CALL_METHYLATION_TOOL == 'bismark' else f"{PROJECT_DIR}/METHYLATION/{wildcards.sample}.deduplicated.regular.{DS}sorted_CpG.bedGraph"
@@ -426,11 +479,12 @@ rule sort_for_metilene:
         cat {params.run_dir}/TEMP/{wildcards.sample}.sorted_m.bedGraph | tr ' ' '\t' > {output}
         """ 
 
+## run_metilene        : rule to run metilene for DMR analysis (if metilene is chosen)
 rule run_metilene:
     input:
         expand("{PROJECT_DIR}/METHYLATION/{sample}.sorted_mod.bedGraph", PROJECT_DIR = PROJECT_DIR, sample = SAMPLES)
     output:
-        "{run_dir}/METHYLATION/DMR/metilene_DMRs.txt"
+        "{run_dir}/METHYLATION/DMR/metilene_DMRs.bed"
     params:
         run_dir = PROJECT_DIR,
         path_to_metilene = config['metilene']['path_to_metilene'],
@@ -444,8 +498,10 @@ rule run_metilene:
     shell:
         """
         python Scripts/metilene_prep.py -m {params.matrix} -d {params.run_dir} -mp {params.path_to_metilene} -s {params.samples} -sp {input} -o {output} -c {threads} -md {params.maxdist} -mc {params.mincpgs} -mdf {params.minMethDiff} -aa {params.additional_params}
+        cut -f 1,2,3 {output} > {params.run_dir}/METHYLATION/DMR/metilene_DMRs.bed
         """
 
+## run_methylkit       : rule to run methylkit for DMR analysis (if methylkit is chosen)
 rule run_methylkit:
     input:
         calls = expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted.bismark.cov.gz", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS) if CALL_METHYLATION_TOOL == 'bismark' else expand("{run_dir}/METHYLATION/{sample}.deduplicated.regular.{ds}sorted_CpG.methylKit", run_dir = PROJECT_DIR, sample = SAMPLES, ds = DS)
@@ -468,9 +524,10 @@ rule run_methylkit:
     script:
         "Scripts/methylkit.R"
 
+## annotate_DMRs       : rule to annotate the DMRs with the regions of interest
 rule annotate_DMRs:
     input:
-        DMRs = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.txt" if DMR_analysis_tool.lower() == 'metilene' else f"{PROJECT_DIR}/METHYLATION/DMR/ALL_methylkit_regions.bed"
+        DMRs = f"{PROJECT_DIR}/METHYLATION/DMR/metilene_DMRs.bed" if DMR_analysis_tool.lower() == 'metilene' else f"{PROJECT_DIR}/METHYLATION/DMR/ALL_methylkit_regions.bed"
     output:
         "{run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed"
     params:
@@ -484,6 +541,7 @@ rule annotate_DMRs:
         intersectBed -a {input.DMRs} -b {params.regions} -wao {params.overlap} > {params.run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed
         """
 
+## make_plots          : rule to make plots for the DMR analysis
 rule make_plots:
     input:
         regions = "{run_dir}/METHYLATION/DMR/ALL_annotated_regions.bed"
@@ -500,4 +558,19 @@ rule make_plots:
     script:
         "Scripts/plots.R"
 
+## help                : rule to display help message
+rule help:
+    input:
+        "WGBS_part2_v0.smk"
+    shell:
+        """
+        echo -e "\\033[0;32m"
+        sed -n 's/^##\\([^#]\\)/\\1/p' {input}
+        echo -e "\\033[0;33m"
+        echo "Example Usage: snakemake -s WGBS_part2_v0.smk --configfile Config/config.yaml --cores 4 [--use-singularity]"
+        echo ""
+        echo "Please refer to the README file for more information on how to use this workflow with the parameters."
+        echo -e "\\033[0m"
+        """
+## ------------------------------------------
 ############################################################################################################

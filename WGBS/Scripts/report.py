@@ -8,10 +8,24 @@ from final_report import *
 
 
 def img_to_base64(img_path):
+    """
+    Convert an image to base64 for easy embedding in HTML.
+    
+    Parameters
+    ----------
+    img_path : str
+        Path to the image.
+    
+    Returns
+    -------
+    str
+        Base64 encoded image.
+    """
     with open(img_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode('utf-8')
     
 def styling():
+    """Template to return the CSS styling for the HTML report."""
     css = f"""
         body {{
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -163,6 +177,38 @@ def styling():
     return css
     
 def generate_html_code_main(design_matrix, dir, run, cores, tool, tool_methyl, downsampling, total_samples, multiqc_path, multiqc_trimmed_pathmed_link, genome):
+    """
+    Main function to generate the HTML report.
+    
+    Parameters
+    ----------
+    design_matrix : str
+        Path to the design matrix.
+    dir : str
+        Directory of the run.
+    run : str
+        Name of the run.
+    cores : int
+        Number of cores to use for samtools count.
+    tool : str
+        Alignment tool used.
+    tool_methyl : str
+        Methylation tool used.
+    downsampling : bool
+        If downsampling was used.
+    total_samples : int
+        Total number of samples.
+    multiqc_path : str
+        Path to the MultiQC report.
+    multiqc_trimmed_pathmed_link : str
+        Path to the MultiQC report for trimmed reads.
+    genome : str
+        Genome used for the analysis.
+    
+    Returns
+    -------
+    None
+    """
     print("--- Starting to generate HTML report ---")
     css = styling()
     print("--- Figuring out paths and HTML content ---")

@@ -50,8 +50,6 @@ One can also choose not to use the singularity image, in which case the followin
 - [multiqc](https://multiqc.info/)
 - [Metilene](http://legacy.bioinf.uni-leipzig.de/Software/metilene/)
 - [R](https://www.r-project.org/), with :
-  - [ggplot2](https://ggplot2.tidyverse.org/)
-  - [dplyr](https://dplyr.tidyverse.org/)
   - [tidyverse](https://www.tidyverse.org/)
   - [DiffBind](https://www.bioconductor.org/packages/release/bioc/html/DiffBind.html)
   - [methylKit](https://www.bioconductor.org/packages/release/bioc/html/methylKit.html)
@@ -167,21 +165,22 @@ To run with singularity:
 snakemake -s snakefile --cores 16 --configfile config/config.yaml --use-singularity
 ```
 
+A help message can be displayed for each Snakefile using the following command:
+```bash
+snakemake help -s snakefile --configfile config/config.yaml --cores 1 --quiet all
+```
+
 ## Output
 
-After running all three steps, the following folders and files will be generated:
+After running all steps, the workflow generates a number of files and folders. Main output to look at are :
 
 | Folder/File             | Description                                                                                     |
 |-------------------------|-------------------------------------------------------------------------------------------------|
-| `TRMMED_READS/`         | Folder containing the trimmed and cleaned reads.                                                |
-| `IDX_GENOME/`           | Folder containing the indexed genome if pipeline was run with Bismark and Indexing set to true  |
 | `ALIGN_BAM/`            | Folder containing the alignment files.                                                          |
 | `BAMs/`                 | Folder containing the filtered, sorted, indexed, deduplicated and downsampled BAM files.        |
 | `METHYLATION/`          | Folder containing the methylation calling files.                                                |
-| `METHYLATION/METHYLATION_BIAS/` | Folder containing the methylation bias check files.                                     |
+| `METHYLATION/DMR/`      | Folder containing the DMR analysis files.                                                       |
 | `FINAL_REPORT/`         | Folder containing the final reports.                                                            |
-| `DMR_ANALYSIS/`         | Folder containing the DMR analysis files.                                                       |
+| *FINAL_REPORT/Run_Report.html* | An html report summarizing the run.                                                      |
 | `LOGS/`                 | Folder containing the log files.                                                                |
 | `REPORTS/`              | Folder containing various reports, including FastQC, MultiQC, alignment, methylation, ...       |
-| *config.txt*           | Configuration used for the run.                                                                 |
-| *Run_Report.html*       | An html report summarizing the run.                                                             |

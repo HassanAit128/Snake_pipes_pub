@@ -55,8 +55,8 @@ rule methylation_calling:
         else
             options="{params.ignore}"
         fi
-        MethylDackel extract -@ {threads} {params.additional_params} $options -o {params.run_dir}/METHYLATION/{params.prefix} {params.genome} {input[0]} > {log} 2>&1
+        MethylDackel extract -@ {threads} {params.additional_params} $options -o {params.run_dir}/METHYLATION/{params.prefix} {params.genome} {input.bam} > {log} 2>&1
         if [ "{params.also_methylkit}" == "True" ]; then
-            MethylDackel extract -@ {threads} --methylKit {params.additional_params} $options -o {params.run_dir}/METHYLATION/{params.prefix} {params.genome} {input[0]} > {log} 2>&1
+            MethylDackel extract -@ {threads} --methylKit {params.additional_params} $options -o {params.run_dir}/METHYLATION/{params.prefix} {params.genome} {input.bam} > {log} 2>&1
         fi
         """
